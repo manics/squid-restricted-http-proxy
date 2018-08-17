@@ -1,0 +1,59 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ template "squid-restricted-http-proxy.fullname" . }}
+  labels:
+    app: {{ template "squid-restricted-http-proxy.name" . }}
+    chart: {{ template "squid-restricted-http-proxy.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "squid-restricted-http-proxy.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "squid-restricted-http-proxy.name" . }}
+        release: {{ .Release.Name }}
+      annotations:
+        # This lets us autorestart when the configuration changes!
+        checksum/config-map: {{ include (print .Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: squid
+              containerPort: 3128
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: squid
+          readinessProbe:
+            tcpSocket:
+              port: squid
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          volumeMounts:
+            - mountPath: /etc/squid/
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "squid-restricted-http-proxy.fullname" . }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

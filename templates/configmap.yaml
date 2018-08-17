@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "squid-restricted-http-proxy.fullname" . }}
+  labels:
+    app: {{ template "squid-restricted-http-proxy.name" . }}
+    chart: {{ template "squid-restricted-http-proxy.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  squid.conf: |
+    # https://www.ssltrust.com.au/blog/setup-squid-proxy/
+
+    # Browsing allowed from these networks
+    {{- range .Values.proxy.clients }}
+    acl clientnet src {{ . }}
+    {{- end }}
+    acl clientnet src 127.0.0.1
+
+    acl SSL_ports port 443
+    acl Safe_ports port 80
+    acl Safe_ports port 443
+    acl CONNECT method CONNECT
+
+    acl Allow_sites dstdomain {{ join " " .Values.proxy.domains }}
+
+    # Deny requests to other ports
+    http_access deny !Safe_ports
+    # Deny CONNECT to other than secure SSL ports
+    http_access deny CONNECT !SSL_Ports
+    # Only allow cachemgr access from localhost
+    http_access allow localhost manager
+    http_access deny manager
+    # Protect innocent web applications running on the proxy server who think
+    # the only one who can access services on "localhost" is a local user
+    http_access deny to_localhost
+
+    # Allow access from client networks to allowed sites
+    http_access allow clientnet Allow_sites
+    http_access allow localhost Allow_sites
+
+    # Deny everything else
+    http_access deny all
+
+    http_port 3128
+
+    # Uncomment and adjust the following to add a disk cache directory.
+    #cache_dir ufs /var/cache/squid 100 16 256
+
+    coredump_dir /var/spool/squid
+
+    # Add any of your own refresh_pattern entries above these.
+    refresh_pattern .		0	20%	4320

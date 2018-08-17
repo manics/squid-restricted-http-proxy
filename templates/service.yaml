@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "squid-restricted-http-proxy.fullname" . }}
+  labels:
+    app: {{ template "squid-restricted-http-proxy.name" . }}
+    chart: {{ template "squid-restricted-http-proxy.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: squid
+      protocol: TCP
+      name: squid
+  selector:
+    app: {{ template "squid-restricted-http-proxy.name" . }}
+    release: {{ .Release.Name }}
